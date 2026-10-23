@@ -193,6 +193,18 @@ if [ -f /etc/X11/xorg.conf.d/99-lcd35-layout.conf ]; then
     sudo rm -rf /etc/X11/xorg.conf.d/99-lcd35-layout.conf
 fi
 
+if [ -f /usr/local/bin/lcd35-calibrate ]; then
+    sudo rm -rf /usr/local/bin/lcd35-calibrate
+fi
+
+if [ -d /usr/local/share/lcd35 ]; then
+    sudo rm -rf /usr/local/share/lcd35
+fi
+
+if [ -f /usr/share/applications/lcd35-calibrate.desktop ]; then
+    sudo rm -rf /usr/share/applications/lcd35-calibrate.desktop
+fi
+
 if [ -f /etc/sudoers.d/lcd35-multiscreen ]; then
     sudo rm -rf /etc/sudoers.d/lcd35-multiscreen
 fi

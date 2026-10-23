@@ -1,6 +1,7 @@
 Section "InputClass"
         Identifier      "calibration"
         MatchProduct    "ADS7846 Touchscreen"
+        Driver          "evdev"
         Option  "Calibration"   "3936 227 268 3880"
         Option  "SwapAxes"      "1"
 EndSection

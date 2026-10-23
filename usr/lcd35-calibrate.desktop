@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Calibrate 3.5" Touchscreen
+Comment=Touch the four crosses to calibrate the 3.5" resistive touchscreen
+Exec=sudo /usr/local/bin/lcd35-calibrate
+Terminal=true
+Categories=Settings;System;
+Icon=input-touchscreen

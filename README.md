@@ -23,6 +23,9 @@ A security-hardened, modernized fork of [`goodtft/LCD-show`](https://github.com/
 6. **Proper Debian Version Comparisons & Safe Boot Config**:
    - Replaced broken bash string comparisons (`"$deb_version" < "12.1"`) with `dpkg --compare-versions`.
    - Disabled hardcoded `PARTUUID` `cmdline.txt` overwrites that could render SD/NVMe installations unbootable.
+7. **On-Screen Touchscreen Calibration (`lcd35-calibrate`)**:
+   - A 4-cross calibration wizard for the resistive 3.5" touchscreen that applies the new calibration immediately and persists it to `/etc/X11/xorg.conf.d/99-calibration.conf`.
+   - One-line axis-mirror fixes (`--flip-x`, `--flip-y`, `--flip-both`), `--show` diagnostics (driver, live values, transformation matrix, config), and `--reset` to restore the shipped defaults.
 
 ---
 
@@ -118,6 +121,35 @@ cd LCD-show-improved
 sudo ./rotate.sh 90
 ```
 *(Supported rotation values: `0`, `90`, `180`, `270`. HDMI screens additionally support `360` for horizontal flip and `450` for vertical flip.)*
+
+---
+
+### Touchscreen Calibration
+
+If taps land in the wrong place (for example the touchscreen is mirrored along the vertical axis), recalibrate on-screen instead of hand-editing Xorg config files:
+
+- **4-cross calibration wizard** — touch each cross once; the result is applied immediately (no reboot, no X restart) and persisted to `/etc/X11/xorg.conf.d/99-calibration.conf`:
+  ```bash
+  sudo lcd35-calibrate
+  ```
+- **Fix a single mirrored axis** — instant, no wizard needed:
+  ```bash
+  sudo lcd35-calibrate --flip-y      # touchscreen mirrored vertically (current MPI3501 issue)
+  sudo lcd35-calibrate --flip-x      # touchscreen mirrored horizontally
+  sudo lcd35-calibrate --flip-both   # both axes mirrored
+  ```
+- **Diagnostics** — session user/display, device id/name, active driver (`evdev` or `libinput`), live calibration and swap values, `Coordinate Transformation Matrix`, and the current config file:
+  ```bash
+  sudo lcd35-calibrate --show
+  ```
+- **Restore the shipped defaults**:
+  ```bash
+  sudo lcd35-calibrate --reset
+  ```
+
+The tool is also available from the desktop menu as **Calibrate 3.5" Touchscreen**, and any kiosk app can bind a button or launcher to `sudo lcd35-calibrate`.
+
+**Tip:** run the calibration with the HDMI cable unplugged — the 3.5" LCD is then the primary `:0.0` screen, so the crosses are never drawn on an HDMI monitor.
 
 ---
 

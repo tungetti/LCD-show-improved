@@ -118,6 +118,28 @@ else
     fi
 fi
 
+# On-screen touchscreen calibration tool
+sudo install -d /usr/local/share/lcd35
+sudo install -m 755 ./usr/lcd35-calibrate /usr/local/bin/lcd35-calibrate
+sudo install -m 644 "./usr/99-calibration.conf-35-$rotate_angle" /usr/local/share/lcd35/99-calibration.conf.default
+sudo install -m 644 ./usr/lcd35-calibrate.desktop /usr/share/applications/lcd35-calibrate.desktop
+if [ $hardware_arch -eq 32 ]; then
+    calibrator_deb="xinput-calibrator_0.7.5-1_armhf.deb"
+else
+    calibrator_deb="xinput-calibrator_0.7.5+git20140201-1+b2_arm64.deb"
+fi
+sudo install -m 644 "./$calibrator_deb" /usr/local/share/lcd35/xinput-calibrator.deb
+wait_for_apt_lock
+sudo apt-get -o DPkg::Lock::Timeout=120 install -y xinput xinput-calibrator 2> error_output.txt || true
+result=`cat ./error_output.txt`
+echo -e "\033[31m$result\033[0m"
+if ! command -v xinput_calibrator > /dev/null 2>&1; then
+    wait_for_apt_lock
+    sudo dpkg -i -B "./$calibrator_deb" 2> error_output.txt
+    result=`cat ./error_output.txt`
+    echo -e "\033[31m$result\033[0m"
+fi
+
 sudo /usr/local/bin/lcd35-apply-xorg-mode.sh --no-restart
 
 sudo sync
