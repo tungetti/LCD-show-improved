@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LCD35 Multi-Screen Manager
+Comment=Automatically sets 3.5" LCD as 1st, 2nd, or 3rd screen based on connected HDMI cables
+Exec=/usr/local/bin/lcd35-multiscreen-daemon.sh
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

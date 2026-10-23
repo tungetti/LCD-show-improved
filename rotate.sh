@@ -63,10 +63,10 @@ else
 new_rotate_value=$[$1/90]
 fi
 elif [ $output_type = "gpio" ]; then
-result=`grep -rn "^dtoverlay=" /boot/config.txt | grep ":rotate=" | tail -n 1`
+result=`grep -rn "^dtoverlay=" /boot/config.txt | grep -E "(:|,)rotate=" | tail -n 1`
 line=`echo -n $result | awk -F: '{printf $1}'`
-str=`echo -n $result | awk -F: '{printf $NF}'`
-old_rotate_value=`echo -n $result | awk -F= '{printf $NF}'`
+str=`echo -n $result | grep -o "rotate=[0-9]\+" | tail -n 1`
+old_rotate_value=`echo -n $str | awk -F= '{printf $NF}'`
 if [ $1 -eq 0 ] || [ $1 -eq 90 ] || [ $1 -eq 180 ] || [ $1 -eq 270 ]; then
 new_rotate_value=$[($default_value+$1)%360]
 else

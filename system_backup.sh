@@ -161,6 +161,14 @@ if [ -f /usr/share/X11/xorg.conf.d/45-evdev.conf ]; then
     sudo rm -rf /usr/share/X11/xorg.conf.d/45-evdev.conf
 fi
 
+if [ -f /usr/local/bin/lcd35-multiscreen-daemon.sh ]; then
+    sudo rm -rf /usr/local/bin/lcd35-multiscreen-daemon.sh
+fi
+
+if [ -f /etc/xdg/autostart/lcd35-multiscreen.desktop ]; then
+    sudo rm -rf /etc/xdg/autostart/lcd35-multiscreen.desktop
+fi
+
 if [ -f ./.have_installed ]; then
     sudo rm -rf ./.have_installed
 fi
