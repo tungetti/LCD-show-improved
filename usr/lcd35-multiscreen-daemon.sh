@@ -11,6 +11,8 @@
 set -u
 
 SYS_DRM_DIR="${SYS_DRM_DIR:-/sys/class/drm}"
+STATE_FILE="${STATE_FILE:-/run/lcd35-xorg-mode}"
+XORG_CONF_OUT="${XORG_CONF_OUT:-/etc/X11/xorg.conf.d/99-lcd35-layout.conf}"
 
 wait_for_display_server() {
     local i
@@ -28,6 +30,17 @@ wait_for_display_server() {
         sleep 1
     done
     return 1
+}
+
+count_drm_connected_hdmis() {
+    local count=0
+    local status_file
+    for status_file in "$SYS_DRM_DIR"/card*-HDMI-A-*/status; do
+        if [ -f "$status_file" ] && [ "$(cat "$status_file" 2>/dev/null | tr -d '[:space:]')" = "connected" ]; then
+            count=$((count + 1))
+        fi
+    done
+    printf '%s\n' "$count"
 }
 
 # Cross-check kernel DRM connector status so an unplugged HDMI cable is treated as
@@ -54,8 +67,63 @@ is_hdmi_drm_disconnected() {
     return 1
 }
 
+get_ads7846_ids() {
+    command -v xinput >/dev/null 2>&1 || return 0
+    {
+        xinput list --id-only "ADS7846 Touchscreen" 2>/dev/null
+        xinput list --id-only "pointer:ADS7846 Touchscreen" 2>/dev/null
+        xinput list 2>/dev/null | grep -i "ADS7846" | grep -v "master" | sed -n 's/.*id=\([0-9][0-9]*\).*/\1/p'
+    } | sort -u
+}
+
+map_touchscreen_to_target() {
+    local target="$1"
+    [ -z "$target" ] && return 0
+    command -v xinput >/dev/null 2>&1 || return 0
+
+    local id
+    for id in $(get_ads7846_ids); do
+        if [ -n "$id" ]; then
+            xinput map-to-output "$id" "$target" 2>/dev/null || true
+        fi
+    done
+}
+
+set_touchscreen_matrix() {
+    command -v xinput >/dev/null 2>&1 || return 0
+    local id
+    for id in $(get_ads7846_ids); do
+        if [ -n "$id" ]; then
+            xinput set-prop "$id" "Coordinate Transformation Matrix" "$@" 2>/dev/null || true
+        fi
+    done
+}
+
 apply_x11_layout() {
     command -v xrandr >/dev/null 2>&1 || return 0
+
+    local drm_hdmi_count current_mode=""
+    drm_hdmi_count="$(count_drm_connected_hdmis)"
+    if [ -f "$STATE_FILE" ]; then
+        current_mode="$(cat "$STATE_FILE" 2>/dev/null | tr -d '[:space:]')"
+    fi
+    if [ -z "$current_mode" ] && [ -f "$XORG_CONF_OUT" ]; then
+        if grep -q "LCD35_MultiLayout" "$XORG_CONF_OUT" 2>/dev/null; then
+            current_mode="multi"
+        elif grep -q "LCD35_SingleLayout" "$XORG_CONF_OUT" 2>/dev/null; then
+            current_mode="single"
+        fi
+    fi
+
+    # If Xorg is using /etc/X11/xorg.conf.d/99-lcd35-layout.conf and HDMI state crossed
+    # between 0 HDMIs ("single") and 1+ HDMIs ("multi"), switch Xorg layout cleanly.
+    if [ -x /usr/local/bin/lcd35-apply-xorg-mode.sh ] && [ -n "$current_mode" ]; then
+        if { [ "$drm_hdmi_count" -eq 0 ] && [ "$current_mode" = "multi" ]; } || \
+           { [ "$drm_hdmi_count" -gt 0 ] && [ "$current_mode" = "single" ]; }; then
+            sudo /usr/local/bin/lcd35-apply-xorg-mode.sh --restart-x
+            exit 0
+        fi
+    fi
 
     local providers_out
     providers_out="$(xrandr --listproviders 2>/dev/null || true)"
@@ -133,19 +201,32 @@ apply_x11_layout() {
         fi
     fi
 
-    if [ -n "$spi_out" ] && command -v xinput >/dev/null 2>&1; then
-        local id
-        for id in $(
-            {
-                xinput list --id-only "ADS7846 Touchscreen" 2>/dev/null
-                xinput list --id-only "pointer:ADS7846 Touchscreen" 2>/dev/null
-                xinput list 2>/dev/null | grep -i "ADS7846" | grep -v "master" | sed -n 's/.*id=\([0-9][0-9]*\).*/\1/p'
-            } | sort -u
-        ); do
-            if [ -n "$id" ]; then
-                xinput map-to-output "$id" "$spi_out" 2>/dev/null || true
-            fi
-        done
+    if [ "$hdmi_count" -eq 0 ]; then
+        set_touchscreen_matrix 1 0 0 0 1 0 0 0 1
+        if [ -n "$spi_out" ]; then
+            map_touchscreen_to_target "$spi_out"
+        fi
+    elif [ -n "$spi_out" ]; then
+        map_touchscreen_to_target "$spi_out"
+    elif DISPLAY=:0.1 xrandr --query >/dev/null 2>&1; then
+        DISPLAY=:0.1 xsetroot -solid "#1e1e2e" 2>/dev/null || true
+        local dims0 dims1 w0 h0 w1 h1 matrix_vals
+        dims0="$(xrandr --query 2>/dev/null | sed -n 's/.*current \([0-9][0-9]*\) x \([0-9][0-9]*\).*/\1 \2/p' | head -n 1)"
+        dims1="$(DISPLAY=:0.1 xrandr --query 2>/dev/null | sed -n 's/.*current \([0-9][0-9]*\) x \([0-9][0-9]*\).*/\1 \2/p' | head -n 1)"
+        read -r w0 h0 <<< "${dims0:-1920 1080}"
+        read -r w1 h1 <<< "${dims1:-480 320}"
+        matrix_vals="$(awk -v w0="${w0:-1920}" -v h0="${h0:-1080}" -v w1="${w1:-480}" -v h1="${h1:-320}" 'BEGIN {
+            tot_w = w0 + w1;
+            max_h = (h0 > h1 ? h0 : h1);
+            c0 = (tot_w > 0 ? w1 / tot_w : 1);
+            c2 = (tot_w > 0 ? w0 / tot_w : 0);
+            c4 = (max_h > 0 ? h1 / max_h : 1);
+            printf "%.6f 0 %.6f 0 %.6f 0 0 0 1", c0, c2, c4
+        }')"
+        if [ -n "$matrix_vals" ]; then
+            # shellcheck disable=SC2086
+            set_touchscreen_matrix $matrix_vals
+        fi
     fi
 }
 
@@ -220,16 +301,35 @@ get_state_signature() {
     printf '%s|%s\n' "$drm_state" "$disp_state"
 }
 
+display_server_alive() {
+    if [ -n "${WAYLAND_DISPLAY:-}" ] && command -v wlr-randr >/dev/null 2>&1; then
+        wlr-randr >/dev/null 2>&1 && return 0
+    fi
+    if command -v xrandr >/dev/null 2>&1; then
+        xrandr --query >/dev/null 2>&1 && return 0
+    fi
+    return 1
+}
+
 main() {
-    wait_for_display_server || true
+    local pid
+    for pid in $(pgrep -u "$(id -u)" -f "lcd35-multiscreen-daemon.sh" 2>/dev/null || true); do
+        if [ "$pid" != "$$" ] && [ "$pid" != "$PPID" ]; then
+            kill "$pid" 2>/dev/null || true
+        fi
+    done
+
+    wait_for_display_server || exit 0
 
     local last_signature=""
     local current_signature=""
 
     while true; do
+        display_server_alive || exit 0
         current_signature="$(get_state_signature)"
         if [ "$current_signature" != "$last_signature" ]; then
             sleep 1
+            display_server_alive || exit 0
             if [ -n "${WAYLAND_DISPLAY:-}" ] && command -v wlr-randr >/dev/null 2>&1; then
                 apply_wayland_layout
             else

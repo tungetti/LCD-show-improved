@@ -48,6 +48,10 @@ if [ -f /boot/firmware/overlays/piscreen.dtbo ] || [ -f /boot/overlays/piscreen.
 else
     sudo cp ./usr/tft35a-overlay.dtb /boot/overlays/
     sudo cp ./usr/tft35a-overlay.dtb /boot/overlays/tft35a.dtbo
+    if [ -d /boot/firmware/overlays ]; then
+        sudo cp ./usr/tft35a-overlay.dtb /boot/firmware/overlays/
+        sudo cp ./usr/tft35a-overlay.dtb /boot/firmware/overlays/tft35a.dtbo
+    fi
     sudo echo "dtoverlay=tft35a:rotate=$rotate_angle" >> ./boot/config.txt.bak
 fi
 
@@ -59,9 +63,12 @@ if [ -f /usr/share/X11/xorg.conf.d/99-fbturbo.conf ]; then
     sudo rm -rf /usr/share/X11/xorg.conf.d/99-fbturbo.conf
 fi
 
-sudo mkdir -p /usr/local/bin /etc/xdg/autostart
+sudo mkdir -p /usr/local/bin /etc/xdg/autostart /etc/sudoers.d
+sudo install -m 755 ./usr/lcd35-apply-xorg-mode.sh /usr/local/bin/lcd35-apply-xorg-mode.sh
 sudo install -m 755 ./usr/lcd35-multiscreen-daemon.sh /usr/local/bin/lcd35-multiscreen-daemon.sh
 sudo cp -rf ./usr/lcd35-multiscreen.desktop /etc/xdg/autostart/lcd35-multiscreen.desktop
+sudo sh -c 'printf "%s\n" "ALL ALL=(root) NOPASSWD: /usr/local/bin/lcd35-apply-xorg-mode.sh, /bin/rm -f /run/lcd35-restart-x, /usr/bin/rm -f /run/lcd35-restart-x" > /etc/sudoers.d/lcd35-multiscreen'
+sudo chmod 0440 /etc/sudoers.d/lcd35-multiscreen
 
 if ver_ge "$deb_version" "13.1"; then
     sudo cp -rf ./usr/99-fbturbo-fbcp.conf /usr/share/X11/xorg.conf.d/99-fbturbo.~
@@ -90,7 +97,7 @@ else
     echo "need to update touch and multi-screen configuration"
     : > error_output.txt
     wait_for_apt_lock
-    sudo apt-get -o DPkg::Lock::Timeout=120 install -y xserver-xorg-input-evdev x11-xserver-utils xinput 2> error_output.txt
+    sudo apt-get -o DPkg::Lock::Timeout=120 install -y xserver-xorg-input-evdev xserver-xorg-video-fbdev x11-xserver-utils xinput 2> error_output.txt
     dpkg -l | grep -q xserver-xorg-input-evdev
     if [ $? -ne 0 ]; then
         input_result=1
@@ -110,6 +117,8 @@ else
         sudo cp -rf /usr/share/X11/xorg.conf.d/10-evdev.conf /usr/share/X11/xorg.conf.d/45-evdev.conf
     fi
 fi
+
+sudo /usr/local/bin/lcd35-apply-xorg-mode.sh --no-restart
 
 sudo sync
 sudo sync

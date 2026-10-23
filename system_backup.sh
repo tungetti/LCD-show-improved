@@ -181,9 +181,23 @@ if [ -f /usr/local/bin/lcd35-multiscreen-daemon.sh ]; then
     sudo rm -rf /usr/local/bin/lcd35-multiscreen-daemon.sh
 fi
 
+if [ -f /usr/local/bin/lcd35-apply-xorg-mode.sh ]; then
+    sudo rm -rf /usr/local/bin/lcd35-apply-xorg-mode.sh
+fi
+
 if [ -f /etc/xdg/autostart/lcd35-multiscreen.desktop ]; then
     sudo rm -rf /etc/xdg/autostart/lcd35-multiscreen.desktop
 fi
+
+if [ -f /etc/X11/xorg.conf.d/99-lcd35-layout.conf ]; then
+    sudo rm -rf /etc/X11/xorg.conf.d/99-lcd35-layout.conf
+fi
+
+if [ -f /etc/sudoers.d/lcd35-multiscreen ]; then
+    sudo rm -rf /etc/sudoers.d/lcd35-multiscreen
+fi
+
+sudo rm -rf /run/lcd35-xorg-mode /run/lcd35-restart-x 2>/dev/null || true
 
 if [ -f ./.have_installed ]; then
     sudo rm -rf ./.have_installed

@@ -3,29 +3,16 @@ if [ -f "$HOME/.profile" ]; then
 fi
 
 if [ -z "${SSH_CONNECTION:-}" ] && [ -z "${DISPLAY:-}" ] && [ "$(tty 2>/dev/null)" = "/dev/tty1" ]; then
-    _lcd35_hdmi_connected=0
-    for _lcd35_status in /sys/class/drm/card*-HDMI-A-*/status; do
-        if [ -f "$_lcd35_status" ] && [ "$(cat "$_lcd35_status" 2>/dev/null)" = "connected" ]; then
-            _lcd35_hdmi_connected=1
-            break
+    while true; do
+        sudo rm -f /run/lcd35-restart-x 2>/dev/null || rm -f /run/lcd35-restart-x 2>/dev/null || true
+        if [ -x /usr/local/bin/lcd35-apply-xorg-mode.sh ]; then
+            sudo /usr/local/bin/lcd35-apply-xorg-mode.sh --no-restart
         fi
-    done
-
-    _lcd35_spi_drm=0
-    for _lcd35_spi in /sys/class/drm/card*-SPI-*/status /sys/class/drm/card*-None-*/status /sys/class/drm/card*-Unknown-*/status /sys/class/drm/card*-DPI-*/status; do
-        if [ -f "$_lcd35_spi" ]; then
-            _lcd35_spi_drm=1
-            break
-        fi
-    done
-
-    if [ "$_lcd35_hdmi_connected" -eq 1 ] || [ "$_lcd35_spi_drm" -eq 1 ]; then
         unset FRAMEBUFFER
         startx 2> "$HOME/.xorg-lcd.log"
-    elif [ -e /dev/fb1 ]; then
-        FRAMEBUFFER=/dev/fb1 startx 2> "$HOME/.xorg-lcd.log"
-    else
-        startx 2> "$HOME/.xorg-lcd.log"
-    fi
-    unset _lcd35_hdmi_connected _lcd35_status _lcd35_spi_drm _lcd35_spi
+        if [ ! -f /run/lcd35-restart-x ]; then
+            break
+        fi
+        sleep 1
+    done
 fi
