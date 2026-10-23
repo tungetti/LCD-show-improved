@@ -1,60 +1,95 @@
 #!/bin/bash
+username="${SUDO_USER:-$(logname 2>/dev/null | tr -d '\n')}"
+if [ -z "$username" ] || [ "$username" = "root" ]; then
+    username="$( awk -F: '$3==1000 {print $1}' /etc/passwd )"
+fi
+
 #Just finished the system, no need to restore
 if [ ! -d "./.system_backup" ]; then
-echo "The system is the original version and does not need to be restored"
-exit
+    echo "The system is the original version and does not need to be restored"
+    exit
 fi
 
 if [ -d /etc/X11/xorg.conf.d ]; then
-sudo rm -rf /etc/X11/xorg.conf.d
+    sudo rm -rf /etc/X11/xorg.conf.d
 fi
 if [ -d ./.system_backup/xorg.conf.d ]; then
-sudo cp -rf ./.system_backup/xorg.conf.d /etc/X11
-if [ -f ./.system_backup/99-calibration.conf ]; then
-sudo cp -rf ./.system_backup/99-calibration.conf /etc/X11/xorg.conf.d
-fi
-if [ -f ./.system_backup/40-libinput.conf ]; then
-sudo cp -rf ./.system_backup/40-libinput.conf /etc/X11/xorg.conf.d
-fi
+    sudo cp -rf ./.system_backup/xorg.conf.d /etc/X11
+    if [ -f ./.system_backup/99-calibration.conf ]; then
+        sudo cp -rf ./.system_backup/99-calibration.conf /etc/X11/xorg.conf.d
+    fi
+    if [ -f ./.system_backup/40-libinput.conf ]; then
+        sudo cp -rf ./.system_backup/40-libinput.conf /etc/X11/xorg.conf.d
+    fi
 fi
 
-result=`grep -rn "^dtoverlay=" /boot/config.txt | grep ":rotate=" | tail -n 1`
-if [ $? -eq 0 ]; then
-str=`echo -n $result | awk -F: '{printf $2}' | awk -F= '{printf $NF}'`
-sudo rm -rf /boot/overlays/$str-overlay.dtb
-sudo rm -rf /boot/overlays/$str.dtbo
+result=`grep -rn "^dtoverlay=" /boot/config.txt 2>/dev/null | grep ":rotate=" | tail -n 1`
+if [ $? -eq 0 ] && [ -n "$result" ]; then
+    str=`echo -n $result | awk -F: '{printf $2}' | awk -F= '{printf $NF}'`
+    sudo rm -rf /boot/overlays/$str-overlay.dtb
+    sudo rm -rf /boot/overlays/$str.dtbo
 fi
 ls -al ./.system_backup/*.dtb > /dev/null 2>&1 && sudo cp -rf ./.system_backup/*.dtb  /boot/overlays/
 ls -al ./.system_backup/*.dtbo > /dev/null 2>&1 && sudo cp -rf ./.system_backup/*.dtbo  /boot/overlays/
 
-if [ -f ./.system_backup/99-fbturbo.conf ];then
-sudo cp -rf ./.system_backup/99-fbturbo.conf /usr/share/X11/xorg.conf.d
+if [ -f ./.system_backup/99-fbturbo.conf ]; then
+    sudo cp -rf ./.system_backup/99-fbturbo.conf /usr/share/X11/xorg.conf.d
 fi
-sudo cp -rf ./.system_backup/cmdline.txt /boot/
-sudo cp -rf ./.system_backup/config.txt /boot/
-sudo cp -rf ./.system_backup/rc.local /etc/
-sudo cp -rf ./.system_backup/modules /etc/
+if [ -f /usr/share/X11/xorg.conf.d/99-fbturbo.~ ]; then
+    sudo rm -rf /usr/share/X11/xorg.conf.d/99-fbturbo.~
+fi
+
+if [ -f ./.system_backup/cmdline.txt ]; then
+    sudo cp -rf ./.system_backup/cmdline.txt /boot/
+fi
+if [ -f ./.system_backup/firmware_cmdline.txt ] && [ -d /boot/firmware ]; then
+    sudo cp -rf ./.system_backup/firmware_cmdline.txt /boot/firmware/cmdline.txt
+elif [ -f /boot/firmware/cmdline.txt ]; then
+    sudo sed -i '/ video/s/ video.*$//' /boot/firmware/cmdline.txt
+fi
+if [ -f ./.system_backup/config.txt ]; then
+    sudo cp -rf ./.system_backup/config.txt /boot/
+fi
+if [ -f ./.system_backup/rc.local ]; then
+    sudo cp -rf ./.system_backup/rc.local /etc/
+fi
+if [ -f ./.system_backup/modules ]; then
+    sudo cp -rf ./.system_backup/modules /etc/
+fi
+
+if [ -f /etc/xdg/lxsession/rpd-x/autostart ]; then
+    sudo sed -i "/xrandr/d" /etc/xdg/lxsession/rpd-x/autostart
+fi
+
+if [ -n "$username" ]; then
+    if [ -f ./.system_backup/had_bash_profile ] && [ -f ./.system_backup/.bash_profile ]; then
+        sudo cp -rf ./.system_backup/.bash_profile "/home/$username/.bash_profile"
+        sudo chown "$username:$username" "/home/$username/.bash_profile"
+    elif [ -f "/home/$username/.bash_profile" ]; then
+        sudo rm -rf "/home/$username/.bash_profile"
+    fi
+fi
 
 if [ -f /etc/inittab ]; then
-sudo rm -rf /etc/inittab
+    sudo rm -rf /etc/inittab
 fi
 if [ -f ./.system_backup/inittab ]; then
-sudo cp -rf ./.system_backup/inittab  /etc
+    sudo cp -rf ./.system_backup/inittab  /etc
 fi
 
 if [ -f /etc/modprobe.d/fbtft.conf ]; then
-sudo rm -rf /etc/modprobe.d/fbtft.conf
+    sudo rm -rf /etc/modprobe.d/fbtft.conf
 fi
 if [ -f ./.system_backup/fbtft.conf ]; then
-sudo cp -rf ./.system_backup/fbtft.conf  /etc/modprobe.d
+    sudo cp -rf ./.system_backup/fbtft.conf  /etc/modprobe.d
 fi
 
 type fbcp > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-sudo rm -rf /usr/local/bin/fbcp
+    sudo rm -rf /usr/local/bin/fbcp
 fi
 if [ -f ./.system_backup/have_fbcp ]; then
-sudo install ./rpi-fbcp/build/fbcp /usr/local/bin/fbcp
+    sudo install ./rpi-fbcp/build/fbcp /usr/local/bin/fbcp
 fi
 
 #type cmake > /dev/null 2>&1
@@ -70,30 +105,30 @@ fi
 #fi
 
 if [ -f /usr/share/X11/xorg.conf.d/10-evdev.conf ]; then
-sudo dpkg -P xserver-xorg-input-evdev
-#sudo apt-get purge xserver-xorg-input-evdev -y 2> error_output.txt
-#result=`cat ./error_output.txt`
-#echo -e "\033[31m$result\033[0m"
+    sudo dpkg -P xserver-xorg-input-evdev
+    #sudo apt-get purge xserver-xorg-input-evdev -y 2> error_output.txt
+    #result=`cat ./error_output.txt`
+    #echo -e "\033[31m$result\033[0m"
 fi
 if [ -f ./.system_backup/10-evdev.conf ]; then
-sudo dpkg -i -B ./xserver-xorg-input-evdev_1%3a2.10.6-1+b1_armhf.deb
-#sudo apt-get install xserver-xorg-input-evdev -y 2> error_output.txt
-#result=`cat ./error_output.txt`
-#echo -e "\033[31m$result\033[0m"
+    sudo dpkg -i -B ./xserver-xorg-input-evdev_1%3a2.10.6-1+b1_armhf.deb
+    #sudo apt-get install xserver-xorg-input-evdev -y 2> error_output.txt
+    #result=`cat ./error_output.txt`
+    #echo -e "\033[31m$result\033[0m"
 fi
 
 if [ -f /usr/share/X11/xorg.conf.d/45-evdev.conf ]; then
-sudo rm -rf /usr/share/X11/xorg.conf.d/45-evdev.conf
+    sudo rm -rf /usr/share/X11/xorg.conf.d/45-evdev.conf
 fi
 if [ -f ./.system_backup/45-evdev.conf ]; then
-sudo cp -rf ./.system_backup/45-evdev.conf /usr/share/X11/xorg.conf.d
+    sudo cp -rf ./.system_backup/45-evdev.conf /usr/share/X11/xorg.conf.d
 fi
 
 if [ -f ./.have_installed ]; then
-sudo rm -rf ./.have_installed
+    sudo rm -rf ./.have_installed
 fi
 if [ -f ./.system_backup/.have_installed ]; then
-sudo cp -rf ./.system_backup/.have_installed ./
+    sudo cp -rf ./.system_backup/.have_installed ./
 fi
 
 sudo sync

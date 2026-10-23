@@ -13,7 +13,7 @@ sudo ./system_backup.sh
 sudo cp ./usr/ads7846-overlay.dtb /boot/overlays/ads7846.dtbo
 
 source ./system_config.sh
-if [[ "$deb_version" < "12.1" ]]; then
+if ver_lt "$deb_version" "12.1"; then
 row=`grep -nr "#dtoverlay=vc4-fkms-v3d" ./boot/config.txt.bak | awk -F ':' '{if(NR==1)printf $1}'`
 sudo sed -i -e ''"$row"'s/#dtoverlay=vc4-fkms-v3d/dtoverlay=vc4-fkms-v3d/' ./boot/config.txt.bak
 sudo sed -i -e 's/#max_framebuffers=2/max_framebuffers=2/' ./boot/config.txt.bak
@@ -21,7 +21,7 @@ fi
 if [ $hardware_model -eq 5 ]; then
 sudo sed -i -e 's/#dtoverlay=vc4-kms-v3d/dtoverlay=vc4-kms-v3d/' ./boot/config.txt.bak
 else
-if [[ "$deb_version" = "13.1" ]] || [[ "$deb_version" > "13.1" ]]; then
+if ver_ge "$deb_version" "13.1"; then
 sudo sed -i -e 's/#dtoverlay=vc4-kms-v3d/dtoverlay=vc4-kms-v3d/' ./boot/config.txt.bak
 fi
 fi
@@ -48,19 +48,20 @@ sudo cp -rf ./boot/config.txt.bak /boot/config.txt
 #else
 #sudo cp ./usr/cmdline.txt /boot/
 #fi
-if [[ "$deb_version" < "13.1" ]]; then
+if ver_lt "$deb_version" "13.1"; then
 sudo cp ./usr/inittab /etc/
 fi
-if [[ "$deb_version" < "12.1" ]]; then
+if ver_lt "$deb_version" "12.1"; then
 sudo cp -rf ./usr/99-fbturbo.conf-HDMI /usr/share/X11/xorg.conf.d/99-fbturbo.conf 
 fi
 if [ ! -d /etc/X11/xorg.conf.d ]; then
 sudo mkdir /etc/X11/xorg.conf.d 
 fi
 
-if [[ "$deb_version" = "13.1" ]] || [[ "$deb_version" > "13.1" ]]; then
+if ver_ge "$deb_version" "13.1"; then
 sudo cp -rf ./usr/99-fbturbo.conf-HDMI  /usr/share/X11/xorg.conf.d/99-fbturbo.~
 sudo cp -rf ./etc/.bash_profile /home/$username/
+sudo chown "$username:$username" "/home/$username/.bash_profile"
 fi
 
 sudo cp -rf ./usr/99-calibration.conf-5-0 /etc/X11/xorg.conf.d/99-calibration.conf 
@@ -79,16 +80,10 @@ if test $version -lt 2017; then
 echo "reboot"
 else
 echo "need to update touch configuration"
-wget --spider -q -o /dev/null --tries=1 -T 10 http://mirrors.zju.edu.cn/raspbian/raspbian
+sudo apt-get install -y xserver-xorg-input-evdev 2> error_output.txt
+dpkg -l | grep -q xserver-xorg-input-evdev
 if [ $? -ne 0 ]; then
 input_result=1
-else
-#sudo apt-get update
-sudo apt-get install xserver-xorg-input-evdev  2> error_output.txt
-dpkg -l | grep xserver-xorg-input-evdev > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-input_result=1
-fi
 fi
 if [ $input_result -eq 1 ]; then 
 if [ $hardware_arch -eq 32 ]; then

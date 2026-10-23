@@ -5,11 +5,11 @@ sudo cp ./usr/mhs24-overlay.dtb /boot/overlays/
 sudo cp ./usr/mhs24-overlay.dtb /boot/overlays/mhs24.dtbo
 sudo cp -rf ./usr/99-calibration.conf-mhs24  /etc/X11/xorg.conf.d/99-calibration.conf
 sudo cp -rf ./usr/99-fbturbo-fbcp.conf  /usr/share/X11/xorg.conf.d/99-fbturbo.conf
-if [ -b /dev/mmcblk0p7 ]; then
-sudo cp ./usr/cmdline.txt-noobs /boot/cmdline.txt
-else
-sudo cp ./usr/cmdline.txt /boot/
-fi
+#if [ -b /dev/mmcblk0p7 ]; then
+#sudo cp ./usr/cmdline.txt-noobs /boot/cmdline.txt
+#else
+#sudo cp ./usr/cmdline.txt /boot/
+#fi
 sudo cp ./usr/inittab /etc/
 sudo cp ./boot/config-mhs24.txt /boot/config.txt
 #FBCP install

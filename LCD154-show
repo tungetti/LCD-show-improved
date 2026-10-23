@@ -40,9 +40,10 @@ sudo cp -rf ./boot/config.txt.bak /boot/config.txt
 #sudo cp ./usr/inittab /etc/
 #sudo cp ./boot/config-mhs35.txt /boot/config.txt
 
-if [[ "$deb_version" = "13.1" ]] || [[ "$deb_version" > "13.1" ]]; then
+if ver_ge "$deb_version" "13.1"; then
 sudo cp -rf ./usr/99-fbturbo-fbcp.conf  /usr/share/X11/xorg.conf.d/99-fbturbo.~
 sudo cp -rf ./etc/.bash_profile /home/$username/
+sudo chown "$username:$username" "/home/$username/.bash_profile"
 
 #sudo cp -rf ./etc/rc_x11.local /etc/rc.local
 fi
@@ -51,7 +52,7 @@ fi
 sudo touch ./.have_installed
 echo "gpio:resistance:LCD154:90:300:300" > ./.have_installed
 
-if [[ "$deb_version" < "13.1" ]]; then
+if ver_lt "$deb_version" "13.1"; then
 #FBCP install
 if [ -d ./fbcp-ili9341 ]; then
 sudo rm -rf ./fbcp-ili9341
@@ -88,14 +89,10 @@ fi
 fi
 
 #KEY install
-wget --spider -q -o /dev/null --tries=1 -T 10 http://mirrors.zju.edu.cn
-if [ $? -eq 0 ]; then
-sudo apt-get install python-xlib 2> error_output.txt
-else
-dpkg -l | grep python-xlib
-if [ $? -eq 1 ]; then
+sudo apt-get install -y python-xlib 2> error_output.txt
+dpkg -l | grep -q python-xlib
+if [ $? -ne 0 ]; then
 sudo dpkg -i -B ./python-xlib_0.23-2_all.deb 2> error_output.txt
-fi
 fi
 result=`cat ./error_output.txt`
 echo -e "\033[31m$result\033[0m"

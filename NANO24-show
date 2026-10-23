@@ -38,7 +38,7 @@ sudo cp -rf ./boot/config.txt.bak /boot/config.txt
 sudo cp ./usr/ft6236.dtb /boot/overlays/ft6236.dtbo
 
 sudo cp -rf ./usr/99-calibration.conf-nano24-90  /etc/X11/xorg.conf.d/99-calibration.conf
-if [[ "$deb_version" < "12.1" ]]; then
+if ver_lt "$deb_version" "12.1"; then
 sudo cp -rf ./usr/99-fbturbo.conf  /usr/share/X11/xorg.conf.d/99-fbturbo.conf
 fi
 #if test "$root_dev" = "/dev/mmcblk0p7";then
@@ -50,7 +50,7 @@ sudo cp ./usr/inittab /etc/
 sudo touch ./.have_installed
 echo "gpio:resistance:nano24:90:320:240" > ./.have_installed
 
-if [[ "$deb_version" < "12.10" ]]; then
+if ver_lt "$deb_version" "12.10"; then
 sudo apt-get update
 fi
 #FBCP install
@@ -82,7 +82,7 @@ sudo install fbcp /usr/local/bin/fbcp
 cd - > /dev/null
 type fbcp > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-if [[ "$deb_version" < "12.1" ]]; then
+if ver_lt "$deb_version" "12.1"; then
 sudo cp -rf ./usr/99-fbturbo-fbcp.conf  /usr/share/X11/xorg.conf.d/99-fbturbo.conf
 fi
 sudo cp -rf ./etc/rc.local /etc/rc.local
@@ -108,15 +108,10 @@ if test $version -lt 2017;then
 echo "reboot"
 else
 echo "need to update touch configuration"
-wget --spider -q -o /dev/null --tries=1 -T 10 http://mirrors.zju.edu.cn/raspbian/raspbian
+sudo apt-get install -y xserver-xorg-input-evdev 2> error_output.txt
+dpkg -l | grep -q xserver-xorg-input-evdev
 if [ $? -ne 0 ]; then
 input_result=1
-else
-sudo apt-get install xserver-xorg-input-evdev  2> error_output.txt
-dpkg -l | grep xserver-xorg-input-evdev > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-input_result=1
-fi
 fi
 if [ $input_result -eq 1 ]; then 
 if [ $hardware_arch -eq 32 ]; then
