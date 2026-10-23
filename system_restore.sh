@@ -4,6 +4,21 @@ if [ -z "$username" ] || [ "$username" = "root" ]; then
     username="$( awk -F: '$3==1000 {print $1}' /etc/passwd )"
 fi
 
+wait_for_apt_lock() {
+    local waited=0
+    while sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1 \
+       || pgrep -x "apt|apt-get|dpkg|unattended-upgr" >/dev/null 2>&1; do
+        if [ "$waited" -eq 0 ]; then
+            echo "Waiting for background apt/dpkg process to finish..."
+        fi
+        sleep 2
+        waited=$((waited + 2))
+        if [ "$waited" -ge 180 ]; then
+            break
+        fi
+    done
+}
+
 #Just finished the system, no need to restore
 if [ ! -d "./.system_backup" ]; then
     echo "The system is the original version and does not need to be restored"
@@ -105,12 +120,14 @@ fi
 #fi
 
 if [ -f /usr/share/X11/xorg.conf.d/10-evdev.conf ]; then
+    wait_for_apt_lock
     sudo dpkg -P xserver-xorg-input-evdev
     #sudo apt-get purge xserver-xorg-input-evdev -y 2> error_output.txt
     #result=`cat ./error_output.txt`
     #echo -e "\033[31m$result\033[0m"
 fi
 if [ -f ./.system_backup/10-evdev.conf ]; then
+    wait_for_apt_lock
     sudo dpkg -i -B ./xserver-xorg-input-evdev_1%3a2.10.6-1+b1_armhf.deb
     #sudo apt-get install xserver-xorg-input-evdev -y 2> error_output.txt
     #result=`cat ./error_output.txt`

@@ -92,7 +92,8 @@ By default, the scripts preserve password authentication at login. If your Raspb
 
 ```bash
 # Dynamic Multi-Screen Mode with Auto-Login:
-sudo LCD_AUTOLOGIN=1 ./LCD35-multiscreen-show
+sudo ./LCD35-multiscreen-show --autologin
+# (or: sudo LCD_AUTOLOGIN=1 ./LCD35-multiscreen-show)
 
 # Or Classic Single-Screen Mode with Auto-Login:
 sudo LCD_AUTOLOGIN=1 ./LCD35-show

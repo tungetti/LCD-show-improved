@@ -11,6 +11,21 @@ fi
 ver_lt() { dpkg --compare-versions "$1" lt "$2"; }
 ver_ge() { dpkg --compare-versions "$1" ge "$2"; }
 
+wait_for_apt_lock() {
+    local waited=0
+    while sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1 \
+       || pgrep -x "apt|apt-get|dpkg|unattended-upgr" >/dev/null 2>&1; do
+        if [ "$waited" -eq 0 ]; then
+            echo "Waiting for background apt/dpkg process to finish..."
+        fi
+        sleep 2
+        waited=$((waited + 2))
+        if [ "$waited" -ge 180 ]; then
+            break
+        fi
+    done
+}
+
 if [ $(getconf WORD_BIT) = '32' ] && [ $(getconf LONG_BIT) = '64' ] ; then
 hardware_arch=64
 else

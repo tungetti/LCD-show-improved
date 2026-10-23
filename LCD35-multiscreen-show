@@ -1,20 +1,26 @@
 #!/bin/bash
 
 rotate_angle=90
-if [ $# -eq 1 ]; then
-    case "$1" in
+rotation_set=0
+for arg in "$@"; do
+    case "$arg" in
+        --autologin|-a)
+            export LCD_AUTOLOGIN=1
+            ;;
         0|90|180|270)
-            rotate_angle=$(( (90 + $1) % 360 ))
+            if [ "$rotation_set" -eq 1 ]; then
+                echo "Too many rotation parameters"
+                exit 1
+            fi
+            rotate_angle=$(( (90 + arg) % 360 ))
+            rotation_set=1
             ;;
         *)
-            echo "Invalid parameter: $1 (expected 0, 90, 180, or 270)"
+            echo "Invalid parameter: $arg (expected 0, 90, 180, 270, or --autologin)"
             exit 1
             ;;
     esac
-elif [ $# -gt 1 ]; then
-    echo "Too many parameters"
-    exit 1
-fi
+done
 
 sudo ./system_backup.sh
 
@@ -82,12 +88,15 @@ if test $version -lt 2017; then
     echo "reboot"
 else
     echo "need to update touch and multi-screen configuration"
-    sudo apt-get install -y xserver-xorg-input-evdev x11-xserver-utils xinput 2> error_output.txt
+    : > error_output.txt
+    wait_for_apt_lock
+    sudo apt-get -o DPkg::Lock::Timeout=120 install -y xserver-xorg-input-evdev x11-xserver-utils xinput 2> error_output.txt
     dpkg -l | grep -q xserver-xorg-input-evdev
     if [ $? -ne 0 ]; then
         input_result=1
     fi
     if [ $input_result -eq 1 ]; then
+        wait_for_apt_lock
         if [ $hardware_arch -eq 32 ]; then
             sudo dpkg -i -B ./xserver-xorg-input-evdev_1%3a2.10.6-1+b1_armhf.deb 2> error_output.txt
         elif [ $hardware_arch -eq 64 ]; then

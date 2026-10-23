@@ -59,13 +59,15 @@ echo "gpio:resistance:32:270:480:360" > ./.have_installed
 
 if ver_lt "$deb_version" "13.1"; then
 if ver_lt "$deb_version" "12.10"; then
-sudo apt-get update
+wait_for_apt_lock
+sudo apt-get -o DPkg::Lock::Timeout=120 update
 fi
 #FBCP install
 wget --spider -q -o /dev/null --tries=1 -T 10 https://cmake.org/
 if [ $? -eq 0 ]; then
 #sudo apt-get update
-sudo apt-get install cmake libraspberrypi-dev -y 2> error_output.txt
+wait_for_apt_lock
+sudo apt-get -o DPkg::Lock::Timeout=120 install cmake libraspberrypi-dev -y 2> error_output.txt
 result=`cat ./error_output.txt`
 echo -e "\033[31m$result\033[0m"
 grep -q "^E:" ./error_output.txt
@@ -118,12 +120,15 @@ if test $version -lt 2017;then
 echo "reboot"
 else
 echo "need to update touch configuration"
-sudo apt-get install -y xserver-xorg-input-evdev 2> error_output.txt
+: > error_output.txt
+wait_for_apt_lock
+sudo apt-get -o DPkg::Lock::Timeout=120 install -y xserver-xorg-input-evdev 2> error_output.txt
 dpkg -l | grep -q xserver-xorg-input-evdev
 if [ $? -ne 0 ]; then
 input_result=1
 fi
 if [ $input_result -eq 1 ]; then 
+wait_for_apt_lock
 if [ $hardware_arch -eq 32 ]; then
 sudo dpkg -i -B ./xserver-xorg-input-evdev_1%3a2.10.6-1+b1_armhf.deb 2> error_output.txt
 elif [ $hardware_arch -eq 64 ]; then

@@ -73,12 +73,15 @@ if test $version -lt 2017;then
 echo "reboot"
 else
 echo "need to update touch configuration"
-sudo apt-get install -y xserver-xorg-input-evdev 2> error_output.txt
+: > error_output.txt
+wait_for_apt_lock
+sudo apt-get -o DPkg::Lock::Timeout=120 install -y xserver-xorg-input-evdev 2> error_output.txt
 dpkg -l | grep -q xserver-xorg-input-evdev
 if [ $? -ne 0 ]; then
 input_result=1
 fi
 if [ $input_result -eq 1 ]; then 
+wait_for_apt_lock
 if [ $hardware_arch -eq 32 ]; then
 sudo dpkg -i -B ./xserver-xorg-input-evdev_1%3a2.10.6-1+b1_armhf.deb 2> error_output.txt
 elif [ $hardware_arch -eq 64 ]; then
